@@ -1,0 +1,590 @@
+---
+title: "Exploring Factors Affecting Population"
+author: Nathan Dennis, Kevin Wu, Katherine Jackson, Eigard Alstad, Michael Pocress
+output: pdf_document
+---
+
+
+# Loading the Data
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+data <- read.csv('Life-Expectancy-Data-Updated.csv')
+library(ggplot2)
+library(patchwork)
+library(corrplot)
+library(dplyr)
+library(MASS)
+library(tidyverse)
+```
+
+```{r}
+data[585, ]$GDP_per_capita = 901
+```
+
+```{r}
+data[585, ]
+```
+
+
+\vspace{-2em}
+
+\begin{center}
+\large \textbf{Description of data}
+\end{center}
+
+\vspace{-1em}
+
+We have a life expectancy dataset from Kaggle, where the original data came from the Global Health Observatory data repository under the World Health Organization (WHO). There are 21 columns in this dataset with 2864 observations across the years 2000-2015. There are 179 countries represented in this dataset across these years. This dataset contains information regarding life expectancy, health metrics, economic indicators, and demographic data.
+
+# EDA
+
+The code below is used for our EDA and plots. We also checked missing values before doing any analysis.
+
+## Missing Values & Descriptive Statistics
+
+
+```{r, echo=F}
+data$Economy_status_Developed <- as.factor(data$Economy_status_Developed)
+data$Economy_status_Developing <- as.factor(data$Economy_status_Developing)
+numeric_data <- data[, sapply(data, is.numeric)]
+numeric_data <- numeric_data[, -1]
+```
+
+```{r}
+any(is.na(data))
+```
+
+
+```{r}
+summary(data)
+```
+
+## Histogram of GDP Per Capita and Log GDP Per Capita
+
+
+```{r}
+
+hist_reg <- ggplot(data = data, aes(x = GDP_per_capita)) +
+  geom_histogram(fill = "skyblue", color = "black", bins = 20) +
+  labs(title = "GDP Per Capita Histogram", x = "GDP Per Capita", y = "Frequency")+
+  theme_minimal() +
+  theme(
+    text = element_text(size = 12),
+    axis.title = element_text(size = 12), 
+    axis.text = element_text(size = 12),
+    plot.title = element_text(size = 12) 
+  )
+
+hist_log <- ggplot(data = data, aes(x = log(GDP_per_capita))) +
+  geom_histogram(fill = "skyblue", color = "black", bins = 20) +
+  labs(title = "GDP Per Capita Histogram (Log Scale)", x = "Log GDP Per Capita", y = "Frequency")+
+  theme_minimal() +
+  theme(
+    text = element_text(size = 12),
+    axis.title = element_text(size = 12), 
+    axis.text = element_text(size = 12),
+    plot.title = element_text(size = 12) 
+  )
+
+hist_reg + hist_log
+
+ggsave('GDP_Histogram.png')
+```
+
+## Correlation Matrix
+
+```{r}
+data$Log_GDP_per_capita <- log(data$GDP_per_capita)
+numeric_data <- data[, sapply(data, is.numeric)]
+numeric_data <- numeric_data[, -1]
+```
+
+
+
+```{r}
+png("correlation_matrix.png", width = 600, height = 600)
+
+
+cor_matrix <- cor(numeric_data)
+
+corrplot(cor_matrix, 
+         method = "circle", 
+         type = "full", 
+         tl.cex = 1, 
+         cl.cex = 1 
+)
+
+```
+
+Correlation coefficients:
+
+
+
+```{r}
+
+selected_columns <- data[, c("Under_five_deaths", "Infant_deaths", "Adult_mortality", "Life_expectancy")]
+
+correlation_matrix <- cor(selected_columns, use = "complete.obs")
+
+print(correlation_matrix)
+
+```
+
+## Life Expectancy vs Log GDP Per Capita
+
+```{r}
+ggplot(data = data, aes(x = Life_expectancy, y = log(GDP_per_capita))) +
+  geom_point(alpha = 0.2) + 
+  labs(
+    title = "Life Expectancy vs Log GDP Per Capita",
+    x = "Life Expectancy",
+    y = "Log GDP Per Capita"
+  ) +
+  theme(
+    text = element_text(size = 12),
+    axis.title = element_text(size = 12), 
+    axis.text = element_text(size = 12),
+    plot.title = element_text(size = 12) 
+  )
+
+ggsave('life_exp_gdp.png')
+```
+
+## Schooling vs Log GDP Per Capita
+
+```{r}
+ggplot(data = data, aes(x = Schooling, y = log(GDP_per_capita))) +
+  geom_point(alpha = 0.2) + 
+  labs(
+    title = "Average Years of Schooling vs Log GDP Per Capita",
+    x = "Average Years of Schooling in a Country",
+    y = "Log GDP Per Capita"
+  ) +
+  theme(
+    text = element_text(size = 12),
+    axis.title = element_text(size = 12), 
+    axis.text = element_text(size = 12),
+    plot.title = element_text(size = 12) 
+  )
+
+ggsave('schooling.png')
+```
+
+## BMI vs Log GDP Per Capita
+
+```{r, out.width="60%", fig.align="center", fig.height=3, echo=F}
+
+ggplot(data = data, aes(x = BMI, y = log(GDP_per_capita))) +
+  geom_point(alpha = 0.2) + 
+  labs(
+    title = "BMI vs Log GDP Per Capita",
+    x = "Average Body Mass Index (BMI) in a Country",
+    y = "Log GDP Per Capita"
+  ) +
+  theme(
+    text = element_text(size = 12),
+    axis.title = element_text(size = 12), 
+    axis.text = element_text(size = 12),
+    plot.title = element_text(size = 12) 
+  )
+
+ggsave('BMI.png')
+
+```
+
+## BMI Vs Log GDP Per Capita colored by Economy Status
+
+```{r}
+ggplot(data = data, aes(x = BMI, y = log(GDP_per_capita), color=Economy_status_Developed)) +
+  geom_point(alpha = 0.3) + 
+  geom_smooth(method = "lm", se = FALSE, linetype = "solid") +
+  labs(
+    title = "BMI vs Log GDP Per Capita Colored by Development Status",
+    x = "Average Body Mass Index (BMI) in a Country",
+    y = "Log GDP Per Capita"
+  ) +
+    scale_color_manual(
+    values = c("0" = "red", "1" = "#2ca02c"), 
+    labels = c("0" = "Developing", "1" = "Developed"),
+    name = "Development Status"
+  ) +
+  theme(
+    text = element_text(size = 12),
+    axis.title = element_text(size = 12), 
+    axis.text = element_text(size = 12),
+    plot.title = element_text(size = 12) 
+  ) +
+  guides(color = guide_legend(override.aes = list(alpha = 1)))
+
+
+ggsave('BMI_colored.png')
+```
+```{r}
+data_subset <- data %>% filter(Country %in% c('Spain', 'India', 'Israel', 'Jordan'))
+```
+
+
+
+```{r}
+ggplot(data = data_subset, aes(x = Year, y = Log_GDP_per_capita, color=Country)) +
+  geom_point(alpha = 0.5) + 
+  theme(
+    text = element_text(size = 12),
+    axis.title = element_text(size = 12), 
+    axis.text = element_text(size = 12),
+    plot.title = element_text(size = 12) 
+  ) 
+```
+
+
+## Economy Status vs Log GDP Per Capita
+
+
+```{r}
+ggplot(data = data, aes(x = Economy_status_Developed, y = Log_GDP_per_capita)) +
+  geom_boxplot(alpha = 0.5) + 
+  labs(
+    title = "Economy Development vs Log GDP Per Capita",
+    x = "Economy Development Status",
+    y = "Log GDP Per Capita"
+  ) +
+  scale_x_discrete(labels = c("0" = "Developing", "1" = "Developed")) +
+  theme(
+    text = element_text(size = 12),
+    axis.title = element_text(size = 12), 
+    axis.text = element_text(size = 12),
+    plot.title = element_text(size = 12) 
+  ) 
+
+ggsave('economy_development_gdp.png')
+```
+
+## Scatterplots of both Population vs Log GDP Per Capita and HIV Incidents vs Log GDP Per Capita
+
+```{r}
+indhiv <- ggplot(data = data, aes(x = Incidents_HIV, y = Log_GDP_per_capita)) +
+  geom_point(alpha = 0.2) + 
+  labs(
+    title = "HIV Incidents vs Log GDP Per Capita",
+    x = "HIV Incidents per 1000 population aged 15-49",
+    y = "Log GDP Per Capita"
+  ) +
+  theme(
+    text = element_text(size = 8),
+    axis.title = element_text(size = 8), 
+    axis.text = element_text(size = 8),
+    plot.title = element_text(size = 8) 
+  )
+
+pop_mln <- ggplot(data = data, aes(x = Population_mln, y = Log_GDP_per_capita)) +
+  geom_point(alpha = 0.2) + 
+  labs(
+    title = "Population vs Log GDP Per Capita",
+    x = "Population in Millions",
+    y = "Log GDP Per Capita"
+  ) +
+  theme(
+    text = element_text(size = 8),
+    axis.title = element_text(size = 8), 
+    axis.text = element_text(size = 8),
+    plot.title = element_text(size = 8) 
+  )
+
+indhiv + pop_mln
+
+ggsave('pop_hiv.png')
+```
+
+## Plot of Mean Log GDP Per Capita by Year
+
+```{r}
+average_log_gdp <- aggregate(Log_GDP_per_capita ~ Year,
+                             data = data, FUN = mean, na.rm = TRUE)
+
+ggplot(average_log_gdp, aes(x = Year, y = Log_GDP_per_capita)) +
+  geom_line(color = "black", size = 1) + 
+  geom_point(color = "red", size = 2) + 
+  labs(title = "Average Log GDP Per Capita (2000–2015)",
+       x = "Year",
+       y = "Average Log GDP Per Capita")
+
+ggsave('gdp_year.png')
+```
+
+# Creating Models
+
+## Baseline model
+
+```{r}
+baseline <- lm(Log_GDP_per_capita ~ Infant_deaths +
+    Under_five_deaths + Adult_mortality +
+    Alcohol_consumption + Hepatitis_B +
+    Measles +  BMI + Polio + Diphtheria +
+    Incidents_HIV + Life_expectancy +
+    Thinness_five_nine_years + Schooling + 
+    as.factor(Economy_status_Developed) +
+      BMI * as.factor(Economy_status_Developed) +
+      Schooling * as.factor(Economy_status_Developed),
+    data=data)
+```
+
+## Calculate VIF for baseline model
+
+
+```{r}
+library(car)
+vif(baseline)#, type = "predictor")
+```
+
+## Full model
+
+```{r}
+full_model <- lm(Log_GDP_per_capita ~
+    Alcohol_consumption + Hepatitis_B +
+    Measles +  BMI + Polio +
+    Incidents_HIV + Life_expectancy +
+    Thinness_five_nine_years + Schooling + 
+    as.factor(Economy_status_Developed) +
+      BMI * as.factor(Economy_status_Developed) +
+      Schooling * as.factor(Economy_status_Developed),
+    data=data)
+```
+
+## VIF of full model
+
+```{r}
+vif(full_model)
+```
+
+## Selection techniques
+
+```{r}
+interceptmodel <- lm(Log_GDP_per_capita ~ 1, data=data)
+
+# Forwards Model
+forward_model <- step(interceptmodel, scope = formula(full_model),
+                      direction='forward', trace=0, data=data)
+
+# Backwards Model
+backward_model <- step(full_model, direction='backward', trace=0, data=data)
+
+# Stepwise Selection
+step_model <- step(interceptmodel, scope = list(lower = formula(interceptmodel),
+                                            upper = formula(full_model)),
+                   direction='both', trace=0, data=data)
+```
+
+
+
+
+## Mixed-Effects Model
+
+
+
+```{r}
+library(lme4)
+library(lmerTest)
+
+data$Year <- data$Year - 2000
+
+model_mixed <- lmer(Log_GDP_per_capita ~ Alcohol_consumption + Hepatitis_B +
+        Measles +  BMI + Polio +
+        Incidents_HIV + Life_expectancy +
+        Thinness_five_nine_years + Schooling + 
+        as.factor(Economy_status_Developed) +
+        BMI * as.factor(Economy_status_Developed) +
+        Schooling * as.factor(Economy_status_Developed) +
+          Year + (1 + Year | Country),
+              data = data)
+
+```
+
+```{r}
+summary(model_mixed)
+```
+
+
+
+
+## AIC of all 4 models
+
+```{r}
+AIC(forward_model, backward_model, step_model, model_mixed)
+```
+
+## Summary of Forward Model
+
+
+
+
+The forward, backward, and stepwise models ended up being the same, just print the forward model.
+
+```{r}
+summary(forward_model)
+```
+
+## Create Residuals vs Fitted and QQ Plot for Best Model
+
+```{r}
+png("best_assumptions.png", width = 800, height = 600)
+
+par(mfrow = c(1, 2))
+
+plot(forward_model, 1)
+
+plot(forward_model, 2)
+
+dev.off()
+
+```
+
+## Create Outliers Plot for Best Model
+
+```{r}
+png("best_outliers.png", width = 800, height = 600)
+
+plot(abs(studres(forward_model)), type = "h", main = "Residuals Plot",
+     ylab = "Absolute value of Studentized Residual")
+
+abline(h = 3, col = "red", lty = 2)  # Threshold at 2 (you can change this to 3 if needed)
+
+dev.off()
+```
+
+## Check which points were residuals in Best Model
+
+```{r}
+residuals <- studres(forward_model)
+
+outliers <- which(abs(residuals) > 3)
+
+outlier_rows <- data[outliers, ]
+
+print(outlier_rows)
+```
+
+## Summary of Mixed Effects Model
+
+
+
+```{r}
+summary(model_mixed)
+```
+
+## Create Fitted vs Residuals plot and QQ Plot for Mixed Effects Model
+
+```{r}
+fitted_values <- fitted(model_mixed)
+residuals <- residuals(model_mixed)
+
+mixed_resid <- ggplot(data.frame(fitted=fitted_values, residuals=residuals), aes(x=fitted, y=residuals)) +
+  geom_point() +
+  geom_hline(yintercept=0, color="red") +
+  theme_minimal() +
+  labs(x="Fitted Values", y="Residuals", title="Residuals vs Fitted (Mixed Model)") +
+  theme(
+    text = element_text(size = 8),
+    axis.title = element_text(size = 6), 
+    axis.text = element_text(size = 8),
+    plot.title = element_text(size = 8) 
+  )
+
+mixed_normal <- ggplot(data.frame(residuals=residuals), aes(sample=residuals)) +
+  geom_qq() +  # Q-Q plot
+  geom_qq_line(color = "red") + 
+  theme_minimal() +  
+  labs(title="Q-Q Plot of Residuals", x="Theoretical Quantiles", y="Sample Quantiles") +
+  theme(
+    text = element_text(size = 8),
+    axis.title = element_text(size = 6), 
+    axis.text = element_text(size = 8),
+    plot.title = element_text(size = 8) 
+  )
+
+mixed_resid + mixed_normal
+
+ggsave('mixed_assumptions.png')
+```
+
+
+## Outliers plot for both the Mixed Effects Model
+
+
+```{r}
+png("mixed_outliers.png", width = 800, height = 600)
+
+student_residuals <- rstudent(model_mixed)
+
+plot(abs(student_residuals), type = "h", main = "Studentized Residuals Plot",
+     ylab = "Absolute Value of Studentized Residuals", col = "black", lwd = 2)
+
+abline(h = 3, col = "red", lty = 2)  
+
+dev.off()
+
+```
+
+## Check Outlier Points for Mixed Effects Model
+
+
+
+
+```{r}
+data[outliers, ]
+```
+
+
+```{r}
+residuals <- rstudent(model_mixed)
+
+outliers <- which(abs(residuals) > 3)
+
+outlier_rows <- data[outliers, ]
+
+print(outlier_rows)
+```
+
+## Fit Full Model Without Log Scaling
+
+```{r}
+data$Year <- data$Year - 2000
+
+model_mixed <- lmer(Log_GDP_per_capita ~ Alcohol_consumption + Hepatitis_B +
+        Measles +  BMI + Polio +
+        Incidents_HIV + Life_expectancy +
+        Thinness_five_nine_years + Schooling + 
+        as.factor(Economy_status_Developed) +
+        BMI * as.factor(Economy_status_Developed) +
+        Schooling * as.factor(Economy_status_Developed) +
+          Year + (1 + Year | Country),
+              data = data)
+```
+
+
+
+```{r}
+data <- read.csv('Life-Expectancy-Data-Updated.csv')
+
+data[585, ]$GDP_per_capita = 901
+
+full_model_non_log <- lm(GDP_per_capita ~
+    Alcohol_consumption + Hepatitis_B +
+    Measles +  BMI + Polio +
+    Incidents_HIV + Life_expectancy +
+    Thinness_five_nine_years + Schooling + 
+    as.factor(Economy_status_Developed) +
+      BMI * as.factor(Economy_status_Developed) +
+      Schooling * as.factor(Economy_status_Developed),
+    data=data)
+```
+
+## Summary of Full Model Without Log Scale
+
+
+
+```{r}
+summary(full_model_non_log)
+```
+
+
